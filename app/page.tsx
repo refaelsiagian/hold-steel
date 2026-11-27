@@ -28,6 +28,10 @@ export default function Home() {
     setCurrentView("game");
   };
 
+  const handleNextLevel = () => {
+    setActiveLevel((prev) => Math.min(36, prev + 1));
+  };
+
   const handleLoadImportCode = (code: string) => {
     setActiveStageAlert(`Imported Level Code: ${code.slice(0, 24)}...`);
     setTimeout(() => {
@@ -64,8 +68,10 @@ export default function Home() {
         />
       ) : (
         <GameArena
+          key={activeLevel}
           levelNumber={activeLevel}
           onBackToLevels={() => setCurrentView("levels")}
+          onNextLevel={handleNextLevel}
           soundEnabled={soundEnabled}
           onToggleSound={toggleSound}
         />

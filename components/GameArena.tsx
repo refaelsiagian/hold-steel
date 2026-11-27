@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import BrandLogo from "./BrandLogo";
 import BoltIcon from "./BoltIcon";
 import { sound } from "./SoundFX";
+import { getStage } from "@/lib/stages";
 
 interface SteelPlateDef {
   id: number;
@@ -49,11 +50,24 @@ const STEEL_ALLOYS: SteelPlateDef[] = [
     gradient: "linear-gradient(135deg, #0891b2 0%, #0e7490 50%, #155e75 100%)",
     svg: <polygon points="12 3 20 8 20 16 12 21 4 16 4 8" />,
   },
+  {
+    id: 6,
+    name: "Silver Platinum",
+    gradient: "linear-gradient(135deg, #94a3b8 0%, #64748b 50%, #475569 100%)",
+    svg: <polygon points="7 2 17 2 22 7 22 17 17 22 7 22 2 17 2 7" />,
+  },
+  {
+    id: 7,
+    name: "Molten Gold",
+    gradient: "linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)",
+    svg: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
+  },
 ];
 
 interface GameArenaProps {
   levelNumber: number;
   onBackToLevels: () => void;
+  onNextLevel?: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
 }
@@ -61,37 +75,16 @@ interface GameArenaProps {
 export default function GameArena({
   levelNumber,
   onBackToLevels,
+  onNextLevel,
   soundEnabled,
   onToggleSound,
 }: GameArenaProps) {
-  // Determine level configuration based on levelNumber
-  const { initialBars, targetIds, parMoves } = useMemo(() => {
-    // 4 bars for early stages, 5 bars for mid stages
-    const barCount = levelNumber >= 20 ? 5 : 4;
-    const pool = Array.from({ length: barCount }, (_, i) => i);
-
-    // Deterministic pseudo-shuffle based on levelNumber
-    const seededTarget = [...pool].sort((a, b) => {
-      const hashA = (a * 17 + levelNumber * 31) % 19;
-      const hashB = (b * 17 + levelNumber * 31) % 19;
-      return hashA - hashB;
-    });
-
-    // Scramble starting rack so it requires moves
-    const seededRack = [...seededTarget].reverse();
-    // Swap first two to ensure not solved
-    if (seededRack.length >= 2) {
-      const temp = seededRack[0];
-      seededRack[0] = seededRack[1];
-      seededRack[1] = temp;
-    }
-
-    return {
-      initialBars: seededRack,
-      targetIds: seededTarget,
-      parMoves: Math.min(barCount, 3 + (levelNumber % 2)),
-    };
-  }, [levelNumber]);
+  // Determine level configuration based on curated stages 1-10 or generator
+  const stageData = useMemo(() => getStage(levelNumber), [levelNumber]);
+  const initialBars = stageData.initialRack;
+  const targetIds = stageData.targetBlueprint;
+  const parMoves = stageData.parMoves;
+  const stageName = stageData.name;
 
   const [activeRack, setActiveRack] = useState<number[]>(initialBars);
   const [history, setHistory] = useState<number[][]>([]);
@@ -160,22 +153,30 @@ export default function GameArena({
     return () => {
       timers.forEach(clearTimeout);
     };
-  }, [initialBars, animKey]);
+  }, [levelNumber, animKey]);
 
-  // Check victory condition
+  const isSolved = useMemo(() => {
+    return (
+      moves > 0 &&
+      activeRack.length === targetIds.length &&
+      activeRack.every((id, idx) => id === targetIds[idx])
+    );
+  }, [activeRack, targetIds, moves]);
+
+  // Check victory condition (wait for final slide animation to finish before showing modal)
   useEffect(() => {
-    if (activeRack.length === targetIds.length) {
-      const isMatch = activeRack.every((id, idx) => id === targetIds[idx]);
-      if (isMatch && moves > 0 && !isWon) {
+    if (isSolved && !isWon) {
+      const timer = setTimeout(() => {
         setIsWon(true);
         sound.playWin();
-      }
+      }, 550);
+      return () => clearTimeout(timer);
     }
-  }, [activeRack, targetIds, moves, isWon]);
+  }, [isSolved, isWon]);
 
   // Handle Move-to-Front click
   const handleBarClick = (clickedId: number) => {
-    if (isWon || !entranceSettled) return;
+    if (isWon || isSolved || !entranceSettled) return;
     const currentIndex = activeRack.indexOf(clickedId);
     if (currentIndex === -1 || currentIndex === 0) return; // already at top
 
@@ -213,6 +214,10 @@ export default function GameArena({
     setHistory([]);
     setMoves(0);
     setIsWon(false);
+    setJustMovedId(null);
+    setEntranceActive(false);
+    setEntranceSettled(false);
+    setShutterOpen(false);
     sound.playUndo();
     setAnimKey((k) => k + 1);
   }, [initialBars]);
@@ -271,16 +276,17 @@ export default function GameArena({
           </button>
         </div>
 
-        {/* Right utility buttons: Undo Move, Reset Rack, and Sound Toggle */}
+        {/* Right utility buttons: Stage Info, Undo Move, Reset Rack, and Sound Toggle */}
         <div className="flex items-center gap-2">
-          {/* Stage */}
-          <button
-            className="h-9 px-2.5 sm:px-3 text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5"
-            title={"STAGE 1-" + levelNumber}
-            aria-label={"STAGE 1-" + levelNumber}
-          >
-            <span>STAGE 1-{levelNumber}</span>
-          </button>
+          {/* Stage Name & Indicator */}
+          <div className="flex flex-col items-end pr-1 sm:pr-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 leading-tight">
+              STAGE 1-{levelNumber}
+            </span>
+            <span className="text-[10px] font-bold text-sky-400 leading-tight">
+              {stageName}
+            </span>
+          </div>
           {/* Undo Move */}
           <button
             onClick={handleUndo}
@@ -460,7 +466,7 @@ export default function GameArena({
 
                 return (
                   <div
-                    key={targetId}
+                    key={`${targetId}-${levelNumber}-${animKey}`}
                     className={`target-blueprint-item flex items-center justify-center ${isMatched ? "matched" : ""} ${shutterOpen ? "blueprint-revealed" : ""}`}
                     style={{
                       background: alloy.gradient,
@@ -517,7 +523,7 @@ export default function GameArena({
 
               return (
                 <div
-                  key={`${steelId}-${animKey}`}
+                  key={`${steelId}-${levelNumber}-${animKey}`}
                   onClick={() => handleBarClick(steelId)}
                   onMouseEnter={() => sound.playHover()}
                   className={`steel-bar-item ${isMoving ? "moving-top" : ""}`}
@@ -607,15 +613,27 @@ export default function GameArena({
               >
                 Replay
               </button>
-              <button
-                onClick={() => {
-                  sound.playEnter();
-                  onBackToLevels();
-                }}
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-lg shadow-sky-500/25"
-              >
-                Back to Stages →
-              </button>
+              {levelNumber < 36 && onNextLevel ? (
+                <button
+                  onClick={() => {
+                    sound.playEnter();
+                    onNextLevel();
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-lg shadow-sky-500/25"
+                >
+                  Next Stage →
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    sound.playEnter();
+                    onBackToLevels();
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-lg shadow-sky-500/25"
+                >
+                  Back to Stages →
+                </button>
+              )}
             </div>
           </div>
         </div>

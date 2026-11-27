@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import BrandLogo from "./BrandLogo";
 import BoltIcon from "./BoltIcon";
 import { sound } from "./SoundFX";
+import { STAGES_1_TO_10 } from "@/lib/stages";
 
 interface LevelInfo {
   number: number;
@@ -31,10 +32,11 @@ function generateChapter1Levels(): LevelInfo[] {
     let bars = 4;
     let par = 3;
 
-    if (levelNum <= 8) {
+    if (levelNum <= 10) {
+      const stage = STAGES_1_TO_10[levelNum - 1];
       gimmick = "Classic";
-      bars = levelNum <= 4 ? 4 : 5;
-      par = 2 + Math.floor(levelNum / 3);
+      bars = stage.bars;
+      par = stage.parMoves;
     } else if (levelNum <= 16) {
       gimmick = "Locked";
       bars = levelNum <= 12 ? 5 : 6;
@@ -57,8 +59,8 @@ function generateChapter1Levels(): LevelInfo[] {
       par = 7;
     }
 
-    // Default unlock levels 1 to 14 to showcase UI interactivity
-    const unlocked = levelNum <= 14;
+    // Default unlock levels 1 to 10 for official progression testing
+    const unlocked = levelNum <= 10;
     let stars = 0;
     let bestMoves: number | null = null;
 
@@ -270,7 +272,11 @@ export default function LevelSelector({
 
             {/* Stage Title */}
             <h3 className="text-2xl font-black text-white mb-1">
-              {selectedLevel.number === 36 ? "Stage 36 • THE BOSS" : `Stage ${selectedLevel.number}`}
+              {selectedLevel.number === 36
+                ? "Stage 36 • THE BOSS"
+                : selectedLevel.number <= 10
+                ? `Stage ${selectedLevel.number} • ${STAGES_1_TO_10[selectedLevel.number - 1].name}`
+                : `Stage ${selectedLevel.number}`}
             </h3>
             <p className="text-xs text-slate-400 mb-5">
               Gimmick: <strong className="text-sky-300">{selectedLevel.gimmick} Mechanics</strong>
