@@ -85,9 +85,13 @@ export default function GameArena({
   const targetIds = stageData.targetBlueprint;
   const parMoves = stageData.parMoves;
   const stageName = stageData.name;
+  const lockedSet = useMemo(() => new Set(stageData.lockedIds ?? []), [stageData.lockedIds]);
+  const releaseSet = useMemo(() => new Set(stageData.releaseSlots ?? []), [stageData.releaseSlots]);
+  const timedLocks = useMemo(() => stageData.timedLocks ?? {}, [stageData.timedLocks]);
 
   const [activeRack, setActiveRack] = useState<number[]>(initialBars);
-  const [history, setHistory] = useState<number[][]>([]);
+  const [timedCounters, setTimedCounters] = useState<Record<number, number>>(timedLocks);
+  const [history, setHistory] = useState<{ rack: number[]; counters: Record<number, number> }[]>([]);
   const [moves, setMoves] = useState(0);
   const [isWon, setIsWon] = useState(false);
   const [justMovedId, setJustMovedId] = useState<number | null>(null);
@@ -101,6 +105,7 @@ export default function GameArena({
   // Reset & level entry sequence
   useEffect(() => {
     setActiveRack(initialBars);
+    setTimedCounters(timedLocks);
     setHistory([]);
     setMoves(0);
     setIsWon(false);
@@ -174,14 +179,30 @@ export default function GameArena({
     }
   }, [isSolved, isWon]);
 
+  const isBarClickable = useCallback(
+    (steelId: number, slotIndex: number, counters: Record<number, number>) => {
+      const onRelease = releaseSet.has(slotIndex);
+      if (lockedSet.has(steelId)) return onRelease;
+      if (steelId in timedLocks) return (counters[steelId] ?? 0) === 0 || onRelease;
+      return true;
+    },
+    [lockedSet, releaseSet, timedLocks]
+  );
+
   // Handle Move-to-Front click
   const handleBarClick = (clickedId: number) => {
     if (isWon || isSolved || !entranceSettled) return;
     const currentIndex = activeRack.indexOf(clickedId);
-    if (currentIndex === -1 || currentIndex === 0) return; // already at top
+    if (currentIndex === -1) return;
+
+    if (!isBarClickable(clickedId, currentIndex, timedCounters)) {
+      sound.playLocked();
+      return;
+    }
+    if (currentIndex === 0) return; // already at top
 
     // Save history for undo
-    setHistory((prev) => [...prev, activeRack]);
+    setHistory((prev) => [...prev, { rack: activeRack, counters: timedCounters }]);
     setMoves((m) => m + 1);
     setJustMovedId(clickedId);
 
@@ -193,7 +214,31 @@ export default function GameArena({
       ...activeRack.slice(0, currentIndex),
       ...activeRack.slice(currentIndex + 1),
     ];
+
+    // Update Timed Lock counters:
+    // - Clicked timed bar resets & re-locks to max
+    // - Unlocked (0) timed bar that shifts position re-locks to max
+    // - Locked (>0) timed bar decrements by 1 on other moves
+    const nextCounters: Record<number, number> = { ...timedCounters };
+    for (const tidStr of Object.keys(timedLocks)) {
+      const tid = Number(tidStr);
+      const maxVal = timedLocks[tid];
+      if (tid === clickedId) {
+        nextCounters[tid] = maxVal;
+      } else {
+        const oldTIdx = activeRack.indexOf(tid);
+        const shifted = oldTIdx !== -1 && oldTIdx < currentIndex;
+        const currVal = timedCounters[tid] ?? maxVal;
+        if (currVal === 0) {
+          if (shifted) nextCounters[tid] = maxVal;
+        } else {
+          nextCounters[tid] = currVal - 1;
+        }
+      }
+    }
+
     setActiveRack(nextRack);
+    setTimedCounters(nextCounters);
 
     setTimeout(() => {
       setJustMovedId(null);
@@ -204,13 +249,15 @@ export default function GameArena({
     if (history.length === 0 || isWon || !entranceSettled) return;
     const previous = history[history.length - 1];
     setHistory((prev) => prev.slice(0, -1));
-    setActiveRack(previous);
+    setActiveRack(previous.rack);
+    setTimedCounters(previous.counters);
     setMoves((m) => Math.max(0, m - 1));
     sound.playUndo();
   }, [history, isWon, entranceSettled]);
 
   const handleReset = useCallback(() => {
     setActiveRack(initialBars);
+    setTimedCounters(timedLocks);
     setHistory([]);
     setMoves(0);
     setIsWon(false);
@@ -220,7 +267,7 @@ export default function GameArena({
     setShutterOpen(false);
     sound.playUndo();
     setAnimKey((k) => k + 1);
-  }, [initialBars]);
+  }, [initialBars, timedLocks]);
 
   // Calculate matched count
   const matchedCount = useMemo(() => {
@@ -463,6 +510,7 @@ export default function GameArena({
               {targetIds.map((targetId, index) => {
                 const alloy = STEEL_ALLOYS[targetId];
                 const isMatched = activeRack[index] === targetId;
+                const isLocked = lockedSet.has(targetId) || targetId in timedLocks;
 
                 return (
                   <div
@@ -472,7 +520,7 @@ export default function GameArena({
                       background: alloy.gradient,
                     }}
                   >
-                    <div className="flex items-center justify-center relative z-10">
+                    <div className="flex items-center justify-center gap-1.5 relative z-10">
                       <svg
                         width="14"
                         height="14"
@@ -486,6 +534,23 @@ export default function GameArena({
                       >
                         {alloy.svg}
                       </svg>
+                      {isLocked && (
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="text-white/90 drop-shadow-sm"
+                          aria-label="Locked"
+                        >
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                      )}
                     </div>
                   </div>
                 );
@@ -510,11 +575,30 @@ export default function GameArena({
 
           {/* Dynamic Animated Rack Container */}
           <div className="relative w-full" style={{ height: `${rackHeight}px` }}>
+            {/* Release Slot Background Indicators */}
+            {Array.from(releaseSet).map((slotIdx) => {
+              if (slotIdx < 0 || slotIdx >= activeRack.length) return null;
+              const slotTop = slotIdx * (BAR_HEIGHT + BAR_GAP) - 4;
+              return (
+                <div
+                  key={`release-slot-${slotIdx}`}
+                  className="absolute -left-1.5 -right-1.5 rounded-xl border-2 border-dashed border-emerald-400/75 bg-emerald-500/15 shadow-[0_0_16px_rgba(16,185,129,0.2)] pointer-events-none z-0"
+                  style={{ top: `${slotTop}px`, height: `${BAR_HEIGHT + 8}px` }}
+                />
+              );
+            })}
+
             {initialBars.map((steelId) => {
               const index = activeRack.indexOf(steelId);
               const alloy = STEEL_ALLOYS[steelId];
               const yPos = index * (BAR_HEIGHT + BAR_GAP);
               const isMoving = justMovedId === steelId;
+              const isBaseLocked = lockedSet.has(steelId);
+              const isTimedLocked = steelId in timedLocks;
+              const timedVal = timedCounters[steelId] ?? 0;
+              const timedMax = timedLocks[steelId] ?? 0;
+              const onReleaseSlot = releaseSet.has(index);
+              const clickable = isBarClickable(steelId, index, timedCounters);
 
               // Step order: 0 for bottom plate, 1 for second from bottom, etc.
               // Bottom plate arrives first, each subsequent plate follows with tight 60ms cascade
@@ -525,8 +609,10 @@ export default function GameArena({
                 <div
                   key={`${steelId}-${levelNumber}-${animKey}`}
                   onClick={() => handleBarClick(steelId)}
-                  onMouseEnter={() => sound.playHover()}
-                  className={`steel-bar-item ${isMoving ? "moving-top" : ""}`}
+                  onMouseEnter={() => {
+                    if (clickable) sound.playHover();
+                  }}
+                  className={`steel-bar-item ${isMoving ? "moving-top" : ""} ${!clickable ? "!cursor-not-allowed brightness-90" : ""} ${onReleaseSlot && (isBaseLocked || isTimedLocked) ? "ring-2 ring-emerald-400/80" : ""}`}
                   style={{
                     background: alloy.gradient,
                     transform: entranceActive
@@ -560,8 +646,74 @@ export default function GameArena({
                     </span>
                   </div>
 
-                  {/* Plate Right Details: Position Tag */}
+                  {/* Plate Right Details: Lock / Timed Lock Badge + Position Tag */}
                   <div className="flex items-center gap-2">
+                    {isBaseLocked && (
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-inner border ${
+                          clickable
+                            ? "bg-emerald-950/85 text-emerald-300 border-emerald-400/60"
+                            : "bg-slate-950/75 text-amber-300 border-amber-400/40"
+                        }`}
+                        title={
+                          clickable
+                            ? "On Release Slot — Click to pull to top!"
+                            : "Locked Steel — cannot be clicked"
+                        }
+                      >
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          {clickable ? (
+                            <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                          ) : (
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          )}
+                        </svg>
+                        {clickable ? "RELEASED" : "LOCKED"}
+                      </span>
+                    )}
+                    {isTimedLocked && (
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-inner border tabular-nums ${
+                          clickable
+                            ? "bg-emerald-950/85 text-emerald-300 border-emerald-400/60"
+                            : "bg-slate-950/75 text-sky-300 border-sky-400/40"
+                        }`}
+                        title={
+                          clickable
+                            ? "Timed Lock Unlocked — Click to pull (shifting re-locks it)"
+                            : `Timed Lock — ${timedVal} move(s) remaining to unlock`
+                        }
+                      >
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          {clickable ? (
+                            <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                          ) : (
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          )}
+                        </svg>
+                        {clickable ? "UNLOCKED" : `${timedVal}/${timedMax}`}
+                      </span>
+                    )}
                     <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-md bg-black/40 text-slate-200 border border-white/15">
                       #{index + 1}
                     </span>

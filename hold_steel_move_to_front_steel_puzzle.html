@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hold Steel! — Move-to-Front Puzzle</title>
+    <style>
+        /* =========================================
+           1. DESIGN TOKENS & RESET (INDUSTRIAL STEEL THEME)
+           ========================================= */
+        :root {
+            --bg-primary: #0b0f14;
+            --bg-secondary: #151c24;
+            --bg-tertiary: #232e3b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border-subtle: rgba(148, 163, 184, 0.14);
+            --shadow-lg: 0 12px 28px -6px rgba(0, 0, 0, 0.6);
+            --radius-lg: 14px;
+            --radius-md: 10px;
+            --radius-sm: 7px;
+            --font-main: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-primary);
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.06) 0%, transparent 60%),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 24px);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            overflow-x: hidden;
+        }
+
+        /* =========================================
+           2. HEADER & MODE/DIFFICULTY SELECTORS
+           ========================================= */
+        header {
+            width: 100%;
+            max-width: 780px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(145deg, #64748b, #334155 55%, #1e293b);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 9px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 3px;
+            padding: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+            position: relative;
+        }
+
+        .brand-logo span {
+            display: block;
+            width: 100%;
+            height: 3.5px;
+            background: linear-gradient(90deg, #e2e8f0, #94a3b8);
+            border-radius: 1.5px;
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+        }
+
+        .brand-logo span:nth-child(2) { width: 78%; align-self: flex-start; background: #38bdf8; }
+        .brand-logo span:nth-child(3) { width: 88%; align-self: flex-end; }
+
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand h1 {
+            font-size: 1.4rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, #ffffff 15%, #cbd5e1 65%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.05;
+        }
+
+        .brand-tagline {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .stage-badge {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .icon-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-md);
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .icon-btn:hover {
+            background: var(--bg-tertiary);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .mode-tabs, .difficulty-tabs {
+            display: grid;
+            gap: 6px;
+            background: var(--bg-secondary);
+            padding: 5px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .mode-tabs { grid-template-columns: repeat(3, 1fr); }
+        .difficulty-tabs { grid-template-columns: repeat(4, 1fr); }
+
+        .mode-btn, .diff-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 7px 6px;
+            border-radius: var(--radius-sm);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .mode-btn:hover, .diff-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(14, 165, 233, 0.35);
+        }
+
+        .diff-btn.active {
+            background: var(--bg-tertiary);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+        }
+
+        /* =========================================
+           3. GIMMICK LEGEND & STATS BAR
+           ========================================= */
+        .gimmick-legend {
+            width: 100%;
+            max-width: 780px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.24);
+            border-radius: var(--radius-md);
+            padding: 8px 14px;
+            margin-top: 10px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .legend-badge {
+            background: rgba(15, 23, 42, 0.8);
+            color: #f8fafc;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-weight: 800;
+            font-size: 0.72rem;
+            letter-spacing: 0.03em;
+        }
+
+        .stats-bar {
+            width: 100%;
+            max-width: 780px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 9px 12px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+            font-weight: 700;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat-value.highlight { color: var(--accent); }
+        .stat-value.good { color: var(--success); }
+
+        /* =========================================
+           4. MAIN GAME ARENA (ACTIVE & TARGET BOARDS)
+           ========================================= */
+        .arena {
+            width: 100%;
+            max-width: 780px;
+            display: grid;
+            grid-template-columns: 1.45fr 1fr;
+            gap: 18px;
+            align-items: start;
+            flex: 1;
+            margin-bottom: 14px;
+        }
+
+        .board-panel {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .panel-title {
+            font-size: 0.84rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .panel-hint {
+            font-size: 0.74rem;
+            color: var(--text-secondary);
+        }
+
+        /* Active Stack Container */
+        .stack-wrapper {
+            position: relative;
+            width: 100%;
+            transition: height 0.25s ease;
+        }
+
+        .bar-item {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            border-radius: var(--radius-md);
+            border-top: 1.5px solid rgba(255, 255, 255, 0.38);
+            border-bottom: 2px solid rgba(0, 0, 0, 0.45);
+            border-left: 1px solid rgba(255, 255, 255, 0.18);
+            border-right: 1px solid rgba(255, 255, 255, 0.18);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px;
+            font-weight: 800;
+            color: #ffffff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.38), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+                        box-shadow 0.2s ease,
+                        filter 0.2s ease,
+                        opacity 0.28s ease;
+            will-change: transform, opacity;
+        }
+
+        /* Brushed Steel Grain + Side Rivets Overlay */
+        .bar-item::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255, 255, 255, 0.04) 0px,
+                rgba(255, 255, 255, 0.04) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+        }
+
+        .bar-item::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 7px;
+            right: 7px;
+            height: 5px;
+            transform: translateY(-50%);
+            background-image:
+                radial-gradient(circle, rgba(255,255,255,0.45) 1.5px, rgba(0,0,0,0.45) 2.5px, transparent 3px),
+                radial-gradient(circle, rgba(255,255,255,0.45) 1.5px, rgba(0,0,0,0.45) 2.5px, transparent 3px);
+            background-size: 6px 6px;
+            background-position: left center, right center;
+            background-repeat: no-repeat;
+            pointer-events: none;
+            opacity: 0.85;
+        }
+
+        .bar-item:hover {
+            filter: brightness(1.08);
+            box-shadow: 0 7px 16px rgba(0, 0, 0, 0.48), inset 0 1px 2px rgba(255, 255, 255, 0.35);
+        }
+
+        .bar-item.moving-top {
+            z-index: 20;
+            box-shadow: 0 12px 26px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.45);
+        }
+
+        .bar-item.is-decoy {
+            border-style: dashed;
+            border-width: 1.5px;
+            border-color: rgba(255, 255, 255, 0.65);
+        }
+
+        .bar-item.vanishing {
+            opacity: 0 !important;
+            filter: brightness(1.8) saturate(0.2);
+            pointer-events: none;
+        }
+
+        .bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1;
+        }
+
+        .bar-symbol {
+            width: 28px;
+            height: 28px;
+            background: rgba(15, 23, 42, 0.38);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 7px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+        }
+
+        .bar-name {
+            font-size: 0.92rem;
+            letter-spacing: 0.01em;
+        }
+
+        .decoy-tag {
+            font-size: 0.64rem;
+            font-weight: 900;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px dashed rgba(255, 255, 255, 0.6);
+            padding: 2px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.06em;
+        }
+
+        .bar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 1;
+        }
+
+        /* Counter Badge on Steel Bar */
+        .counter-badge {
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1.5px solid rgba(255, 255, 255, 0.35);
+            border-radius: 999px;
+            padding: 2px 9px;
+            font-size: 0.78rem;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        .counter-badge.warning {
+            background: #b45309;
+            border-color: #fde68a;
+            color: #fffbeb;
+        }
+
+        .counter-badge.critical {
+            background: #dc2626;
+            border-color: #fecaca;
+            color: #ffffff;
+            animation: pulseCritical 0.65s infinite alternate;
+        }
+
+        @keyframes pulseCritical {
+            from { transform: scale(1); }
+            to { transform: scale(1.12); }
+        }
+
+        .bar-pos-badge {
+            font-size: 0.72rem;
+            background: rgba(15, 23, 42, 0.35);
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-weight: 700;
+            opacity: 0.9;
+        }
+
+        /* Target Stack Container */
+        .target-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .target-item {
+            height: 40px;
+            border-radius: var(--radius-sm);
+            border-top: 1px solid rgba(255, 255, 255, 0.32);
+            border-bottom: 1.5px solid rgba(0, 0, 0, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.84rem;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 5px rgba(0, 0, 0, 0.25);
+            position: relative;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .target-item.matched {
+            outline: 2px solid #ffffff;
+            outline-offset: -2px;
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+        }
+
+        .target-match-badge {
+            background: rgba(15, 23, 42, 0.55);
+            border-radius: 999px;
+            width: 20px;
+            height: 20px;
+            display: grid;
+            place-items: center;
+            font-size: 0.72rem;
+        }
+
+        /* =========================================
+           5. CONTROLS BAR
+           ========================================= */
+        .controls-bar {
+            width: 100%;
+            max-width: 780px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.4fr;
+            gap: 10px;
+        }
+
+        .ctrl-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 12px 14px;
+            border-radius: var(--radius-md);
+            font-size: 0.86rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            transition: all 0.16s ease;
+        }
+
+        .ctrl-btn:hover:not(:disabled) {
+            background: var(--bg-tertiary);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .ctrl-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .ctrl-btn.primary {
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            border-color: rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+        }
+
+        .ctrl-btn.primary:hover {
+            background: linear-gradient(135deg, #38bdf8, #3b82f6);
+        }
+
+        /* =========================================
+           6. MODALS (VICTORY, FAIL & TUTORIAL)
+           ========================================= */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 8, 13, 0.78);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.22s ease;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7);
+            transform: scale(0.94);
+            transition: transform 0.22s ease;
+        }
+
+        .modal-overlay.open .modal-card {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 8px;
+        }
+
+        .modal-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 18px;
+        }
+
+        .stars-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .star-icon {
+            width: 34px;
+            height: 34px;
+            color: #334155;
+            transition: color 0.3s ease, transform 0.3s ease;
+        }
+
+        .star-icon.earned {
+            color: #fbbf24;
+            filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.55));
+            transform: scale(1.08);
+        }
+
+        .modal-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: var(--bg-primary);
+            padding: 12px;
+            border-radius: var(--radius-md);
+            margin-bottom: 18px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .modal-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .fail-icon-wrap {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.14);
+            color: var(--danger);
+            display: grid;
+            place-items: center;
+            margin: 0 auto 12px;
+            border: 1px solid rgba(239, 68, 68, 0.35);
+        }
+
+        /* =========================================
+           7. RESPONSIVE MOBILE ADAPTATION
+           ========================================= */
+        @media (max-width: 680px) {
+            .arena {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .target-panel {
+                order: -1;
+            }
+            .target-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+            }
+            .target-item {
+                height: 34px;
+                font-size: 0.78rem;
+                padding: 0 9px;
+            }
+            .difficulty-tabs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .controls-bar {
+                grid-template-columns: 1fr 1fr;
+            }
+            .controls-bar .primary {
+                grid-column: span 2;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="top-bar">
+            <div class="brand">
+                <div class="brand-logo" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <div class="brand-text">
+                    <h1>Hold Steel!</h1>
+                    <span class="brand-tagline">Lock the Stack</span>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="stage-badge">
+                    <span>STAGE</span>
+                    <span id="stage-display">1</span>
+                </div>
+                <button class="icon-btn" id="sound-toggle" title="Suara Efek" aria-label="Toggle Suara">
+                    <svg id="icon-sound-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                    </svg>
+                    <svg id="icon-sound-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <line x1="23" y1="9" x2="17" y2="15"></line>
+                        <line x1="17" y1="9" x2="23" y2="15"></line>
+                    </svg>
+                </button>
+                <button class="icon-btn" id="help-btn" title="Cara Bermain" aria-label="Cara Bermain">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Gimmick Mode Selector -->
+        <div class="mode-tabs" role="tablist">
+            <button class="mode-btn active" data-mode="classic">Klasik</button>
+            <button class="mode-btn" data-mode="counter">⏱ Counter Bar</button>
+            <button class="mode-btn" data-mode="decoy">⏱ Counter + Decoy</button>
+        </div>
+
+        <!-- Difficulty Selector -->
+        <div class="difficulty-tabs" role="tablist">
+            <button class="diff-btn active" data-bars="4">Mudah (4 Bar)</button>
+            <button class="diff-btn" data-bars="5">Sedang (5 Bar)</button>
+            <button class="diff-btn" data-bars="6">Sulit (6 Bar)</button>
+            <button class="diff-btn" data-bars="7">Ahli (7 Bar)</button>
+        </div>
+    </header>
+
+    <!-- GIMMICK LEGEND BANNER -->
+    <div class="gimmick-legend" id="gimmick-legend" style="display: none;">
+        <div style="display:flex; align-items:center; gap:6px;">
+            <span class="legend-badge">⏱ Counter</span>
+            <span>Turun <strong>-1 tiap klik</strong> (termasuk saat di atas). Klik bar ini untuk <strong>reset</strong>.</span>
+        </div>
+        <div id="decoy-legend-item" style="display:none; align-items:center; gap:6px;">
+            <span class="legend-badge" style="border: 1px dashed rgba(255,255,255,0.6);">DECOY</span>
+            <span>Tidak ada di Target — <strong>biarkan habis (0)</strong> agar hilang!</span>
+        </div>
+    </div>
+
+    <!-- STATS SCOREBOARD -->
+    <section class="stats-bar">
+        <div class="stat-card">
+            <div class="stat-label">Langkah Kamu</div>
+            <div class="stat-value" id="moves-count">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Target (Par)</div>
+            <div class="stat-value highlight" id="par-count">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Cocok</div>
+            <div class="stat-value" id="match-count">0/4</div>
+        </div>
+    </section>
+
+    <!-- MAIN ARENA -->
+    <main class="arena">
+        <!-- Interactive Active Stack -->
+        <section class="board-panel active-panel">
+            <div class="panel-header">
+                <span class="panel-title">Rak Baja Aktif</span>
+                <span class="panel-hint">Klik plat baja untuk naik ↑</span>
+            </div>
+            <div class="stack-wrapper" id="active-stack"></div>
+        </section>
+
+        <!-- Target Reference Stack -->
+        <section class="board-panel target-panel">
+            <div class="panel-header">
+                <span class="panel-title">Cetak Biru Target</span>
+                <span class="panel-hint">Atas → Bawah</span>
+            </div>
+            <div class="target-list" id="target-stack"></div>
+        </section>
+    </main>
+
+    <!-- CONTROLS -->
+    <footer class="controls-bar">
+        <button class="ctrl-btn" id="undo-btn" disabled>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7v6h6"></path>
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+            </svg>
+            Urungkan
+        </button>
+        <button class="ctrl-btn" id="reset-btn">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            Ulangi
+        </button>
+        <button class="ctrl-btn primary" id="new-level-btn">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Acak Level Baru
+        </button>
+    </footer>
+
+    <!-- VICTORY MODAL -->
+    <div class="modal-overlay" id="victory-modal">
+        <div class="modal-card">
+            <div class="modal-title" id="victory-title">Sempurna!</div>
+            <div class="stars-row" id="victory-stars">
+                <svg class="star-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <svg class="star-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <svg class="star-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <p class="modal-subtitle" id="victory-desc">Susunan plat baja berhasil dikunci sesuai target.</p>
+            <div class="modal-stats">
+                <div>
+                    <div class="stat-label">Langkah Kamu</div>
+                    <div class="stat-value" id="modal-moves">0</div>
+                </div>
+                <div>
+                    <div class="stat-label">Target (Par)</div>
+                    <div class="stat-value highlight" id="modal-par">0</div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="ctrl-btn" id="modal-retry-btn">Main Ulang</button>
+                <button class="ctrl-btn primary" id="modal-next-btn">Stage Berikutnya →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAIL MODAL (REQUIRED BAR VANISHED) -->
+    <div class="modal-overlay" id="fail-modal">
+        <div class="modal-card">
+            <div class="fail-icon-wrap">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+            </div>
+            <div class="modal-title" style="color: var(--danger);">Plat Dibutuhkan Melebur!</div>
+            <p class="modal-subtitle" id="fail-desc">Counter bar yang ada di Target mencapai 0 dan menghilang sebelum susunan selesai.</p>
+            <div class="modal-actions">
+                <button class="ctrl-btn" id="fail-undo-btn">↶ Urungkan</button>
+                <button class="ctrl-btn primary" id="fail-retry-btn">Ulangi Level</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HELP / TUTORIAL MODAL -->
+    <div class="modal-overlay" id="help-modal">
+        <div class="modal-card" style="text-align: left;">
+            <h2 class="modal-title" style="text-align: center; margin-bottom: 12px;">Cara Bermain — Hold Steel!</h2>
+            <p class="modal-subtitle" style="margin-bottom: 14px;">
+                Susun ulang tumpukan plat baja di <strong>Rak Baja Aktif</strong> agar urutannya persis sama dengan <strong>Cetak Biru Target</strong> hingga seluruh susunan terkunci diam.
+            </p>
+            <ul style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; padding-left: 18px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px;">
+                <li><strong style="color: var(--text-primary);">Mekanik Move-to-Front:</strong> Klik plat baja mana saja untuk menariknya ke <strong>posisi paling atas</strong> dan menggeser plat di atasnya turun satu tingkat.</li>
+                <li><strong style="color: var(--accent);">Counter Bar (⏱):</strong> Setiap kali kamu mengklik plat apa pun, angka counter pada semua Counter Bar lain berkurang <strong>-1</strong> (meski sedang berada di posisi paling atas). Klik langsung Counter Bar tersebut untuk <strong>mereset</strong> angkanya ke awal!</li>
+                <li><strong style="color: var(--warning);">Hilang di Angka 0:</strong> Jika counter mencapai 0, plat baja langsung melebur sebelum cek kemenangan. Jika plat tersebut dibutuhkan oleh Target, kamu kalah. Jika plat berlabel <strong>DECOY</strong> (tidak ada di Target), biarkan counternya habis agar plat pengganggu itu lenyap!</li>
+            </ul>
+            <button class="ctrl-btn primary" style="width: 100%;" id="close-help-btn">Mengerti, Mulai Main!</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * =====================================================================
+         * HOLD STEEL! — CORE GAME ENGINE, COUNTER BAR GIMMICK & STATE-SPACE BFS
+         * =====================================================================
+         */
+
+        // 1. STEEL PLATE DEFINITIONS
+        const BAR_TYPES = [
+            {
+                id: 0,
+                name: 'Crimson Steel',
+                gradient: 'linear-gradient(135deg, #e11d48 0%, #be123c 50%, #9f1239 100%)',
+                svg: '<circle cx="12" cy="12" r="7"/>'
+            },
+            {
+                id: 1,
+                name: 'Cobalt Alloy',
+                gradient: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%)',
+                svg: '<polygon points="12 4 20 19 4 19"/>'
+            },
+            {
+                id: 2,
+                name: 'Emerald Chrome',
+                gradient: 'linear-gradient(135deg, #059669 0%, #047857 50%, #065f46 100%)',
+                svg: '<rect x="5" y="5" width="14" height="14" rx="2"/>'
+            },
+            {
+                id: 3,
+                name: 'Brass Ingot',
+                gradient: 'linear-gradient(135deg, #d97706 0%, #b45309 50%, #92400e 100%)',
+                svg: '<polygon points="12 3 21 12 12 21 3 12"/>'
+            },
+            {
+                id: 4,
+                name: 'Titanium Violet',
+                gradient: 'linear-gradient(135deg, #9333ea 0%, #7e22ce 50%, #6b21a8 100%)',
+                svg: '<polygon points="12 2 15 9 22 9 16 14 18 21 12 17 6 21 8 14 2 9 9 9"/>'
+            },
+            {
+                id: 5,
+                name: 'Tungsten Cyan',
+                gradient: 'linear-gradient(135deg, #0891b2 0%, #0e7490 50%, #155e75 100%)',
+                svg: '<polygon points="12 3 20 8 20 16 12 21 4 16 4 8"/>'
+            },
+            {
+                id: 6,
+                name: 'Copper Plate',
+                gradient: 'linear-gradient(135deg, #ea580c 0%, #c2410c 50%, #9a3412 100%)',
+                svg: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'
+            }
+        ];
+
+        // 2. SOUND SYNTHESIZER (Web Audio API)
+        class SoundFX {
+            constructor() {
+                this.enabled = true;
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) this.ctx = new AudioContext();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playShift(index, totalBars) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const clack = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                const baseFreq = 310 + (index / Math.max(1, totalBars)) * 340;
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.13);
+
+                clack.type = 'sine';
+                clack.frequency.setValueAtTime(1450, now + 0.05);
+                clack.frequency.exponentialRampToValueAtTime(520, now + 0.11);
+
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+                osc.connect(gain);
+                clack.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                clack.start(now + 0.05);
+                osc.stop(now + 0.17);
+                clack.stop(now + 0.12);
+            }
+
+            playCounterTick(isCritical) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(isCritical ? 980 : 660, now);
+                osc.frequency.exponentialRampToValueAtTime(isCritical ? 740 : 520, now + 0.06);
+
+                gain.gain.setValueAtTime(0.09, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.07);
+            }
+
+            playVanish(isDecoy) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = isDecoy ? 'triangle' : 'sawtooth';
+                osc.frequency.setValueAtTime(isDecoy ? 540 : 280, now);
+                osc.frequency.exponentialRampToValueAtTime(isDecoy ? 180 : 75, now + 0.25);
+
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.27);
+            }
+
+            playUndo() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(380, now);
+                osc.frequency.exponentialRampToValueAtTime(220, now + 0.12);
+
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.14);
+            }
+
+            playWin() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const notes = [523.25, 659.25, 783.99, 1046.5];
+                notes.forEach((freq, i) => {
+                    const now = this.ctx.currentTime + i * 0.08;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(now);
+                    osc.stop(now + 0.29);
+                });
+            }
+        }
+
+        // 3. STATE-SPACE BFS SOLVER (Exact Minimum Moves / Par Calculator)
+        function serializeState(bars) {
+            return bars.map(b => `${b.id}:${b.counter !== null ? b.counter : '-'}`).join('|');
+        }
+
+        function cloneBars(bars) {
+            return bars.map(b => ({ ...b }));
+        }
+
+        function applyMoveStep(bars, clickedIndex, targetIdsSet) {
+            const next = cloneBars(bars);
+            const [selected] = next.splice(clickedIndex, 1);
+
+            // Reset counter ONLY when actively clicked
+            if (selected.maxCounter !== null) {
+                selected.counter = selected.maxCounter;
+            }
+            next.unshift(selected);
+
+            // Tick down all OTHER counter bars (even if already at index 0 before move)
+            const vanished = [];
+            const surviving = [];
+
+            for (let i = 0; i < next.length; i++) {
+                const bar = next[i];
+                if (i !== 0 && bar.counter !== null) {
+                    bar.counter -= 1;
+                }
+                if (bar.counter !== null && bar.counter <= 0) {
+                    vanished.push(bar);
+                } else {
+                    surviving.push(bar);
+                }
+            }
+
+            // Precedence: Vanishing resolves BEFORE win check
+            const failed = vanished.some(v => targetIdsSet.has(v.id));
+            return { bars: surviving, vanished, failed };
+        }
+
+        function solveShortestPath(initialBars, targetIds) {
+            const targetKey = targetIds.join(',');
+            const targetSet = new Set(targetIds);
+
+            const startKey = serializeState(initialBars);
+            const queue = [{ bars: cloneBars(initialBars), steps: 0 }];
+            const visited = new Set([startKey]);
+            let head = 0;
+            const MAX_STATES = 25000;
+
+            while (head < queue.length && visited.size < MAX_STATES) {
+                const { bars, steps } = queue[head++];
+
+                if (bars.length === targetIds.length && bars.map(b => b.id).join(',') === targetKey) {
+                    return steps;
+                }
+
+                for (let i = 0; i < bars.length; i++) {
+                    const res = applyMoveStep(bars, i, targetSet);
+                    if (res.failed) continue;
+
+                    const key = serializeState(res.bars);
+                    if (!visited.has(key)) {
+                        visited.add(key);
+                        queue.push({ bars: res.bars, steps: steps + 1 });
+                    }
+                }
+            }
+            return null; // Unsolvable within state budget
+        }
+
+        // 4. MAIN GAME CONTROLLER
+        class HoldSteelGame {
+            constructor() {
+                this.sfx = new SoundFX();
+                this.mode = 'classic'; // 'classic' | 'counter' | 'decoy'
+                this.numBars = 4;
+                this.stage = 1;
+
+                this.initialBars = [];
+                this.currentBars = [];
+                this.targetIds = [];
+                this.parMoves = 0;
+                this.moves = 0;
+                this.history = [];
+                this.isLocked = false;
+
+                this.barHeight = 52;
+                this.barGap = 9;
+
+                this.cacheDOM();
+                this.bindEvents();
+                this.generateLevel();
+            }
+
+            cacheDOM() {
+                this.activeStackEl = document.getElementById('active-stack');
+                this.targetStackEl = document.getElementById('target-stack');
+                this.movesEl = document.getElementById('moves-count');
+                this.parEl = document.getElementById('par-count');
+                this.matchEl = document.getElementById('match-count');
+                this.stageEl = document.getElementById('stage-display');
+                this.undoBtn = document.getElementById('undo-btn');
+                this.resetBtn = document.getElementById('reset-btn');
+                this.newLevelBtn = document.getElementById('new-level-btn');
+                this.legendEl = document.getElementById('gimmick-legend');
+                this.decoyLegendEl = document.getElementById('decoy-legend-item');
+
+                this.victoryModal = document.getElementById('victory-modal');
+                this.failModal = document.getElementById('fail-modal');
+                this.helpModal = document.getElementById('help-modal');
+            }
+
+            bindEvents() {
+                // Mode tabs
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.mode = btn.dataset.mode;
+                        this.stage = 1;
+                        this.updateLegend();
+                        this.generateLevel();
+                    });
+                });
+
+                // Difficulty tabs
+                document.querySelectorAll('.diff-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.numBars = parseInt(btn.dataset.bars, 10);
+                        this.stage = 1;
+                        this.generateLevel();
+                    });
+                });
+
+                // Controls
+                this.undoBtn.addEventListener('click', () => this.undo());
+                this.resetBtn.addEventListener('click', () => this.resetLevel());
+                this.newLevelBtn.addEventListener('click', () => this.generateLevel());
+
+                // Sound toggle
+                document.getElementById('sound-toggle').addEventListener('click', () => {
+                    this.sfx.enabled = !this.sfx.enabled;
+                    document.getElementById('icon-sound-on').style.display = this.sfx.enabled ? 'block' : 'none';
+                    document.getElementById('icon-sound-off').style.display = this.sfx.enabled ? 'none' : 'block';
+                });
+
+                // Modals
+                document.getElementById('help-btn').addEventListener('click', () => this.helpModal.classList.add('open'));
+                document.getElementById('close-help-btn').addEventListener('click', () => this.helpModal.classList.remove('open'));
+
+                document.getElementById('modal-retry-btn').addEventListener('click', () => {
+                    this.victoryModal.classList.remove('open');
+                    this.resetLevel();
+                });
+
+                document.getElementById('modal-next-btn').addEventListener('click', () => {
+                    this.victoryModal.classList.remove('open');
+                    this.stage += 1;
+                    this.generateLevel();
+                });
+
+                document.getElementById('fail-undo-btn').addEventListener('click', () => {
+                    this.failModal.classList.remove('open');
+                    this.undo();
+                });
+
+                document.getElementById('fail-retry-btn').addEventListener('click', () => {
+                    this.failModal.classList.remove('open');
+                    this.resetLevel();
+                });
+            }
+
+            updateLegend() {
+                if (this.mode === 'classic') {
+                    this.legendEl.style.display = 'none';
+                } else {
+                    this.legendEl.style.display = 'flex';
+                    this.decoyLegendEl.style.display = this.mode === 'decoy' ? 'flex' : 'none';
+                }
+            }
+
+            shuffleArray(arr) {
+                const copy = [...arr];
+                for (let i = copy.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [copy[i], copy[j]] = [copy[j], copy[i]];
+                }
+                return copy;
+            }
+
+            generateLevel() {
+                this.isLocked = false;
+                let validLevel = false;
+                let attempts = 0;
+
+                while (!validLevel && attempts < 60) {
+                    attempts++;
+                    const targetPool = Array.from({ length: this.numBars }, (_, i) => i);
+                    const targetIds = this.shuffleArray(targetPool);
+
+                    let activeList = targetIds.map(id => ({
+                        id,
+                        counter: null,
+                        maxCounter: null,
+                        isDecoy: false
+                    }));
+
+                    if (this.mode === 'counter') {
+                        const counterCount = this.numBars >= 6 ? 2 : 1;
+                        const chosenIndices = this.shuffleArray(targetPool).slice(0, counterCount);
+                        chosenIndices.forEach(idx => {
+                            const maxVal = Math.max(3, Math.min(5, this.numBars - 1));
+                            activeList[idx].counter = maxVal;
+                            activeList[idx].maxCounter = maxVal;
+                        });
+                    } else if (this.mode === 'decoy') {
+                        // Add 1 Decoy bar (not in target) + 1 Required Counter bar
+                        const decoyId = this.numBars < BAR_TYPES.length ? this.numBars : 6;
+                        const reqIdx = Math.floor(Math.random() * activeList.length);
+                        const reqMax = Math.max(4, Math.min(6, this.numBars));
+                        activeList[reqIdx].counter = reqMax;
+                        activeList[reqIdx].maxCounter = reqMax;
+
+                        const decoyMax = Math.max(2, Math.min(4, this.numBars - 1));
+                        activeList.push({
+                            id: decoyId,
+                            counter: decoyMax,
+                            maxCounter: decoyMax,
+                            isDecoy: true
+                        });
+                    }
+
+                    activeList = this.shuffleArray(activeList);
+
+                    // Ensure not already solved
+                    if (activeList.length === targetIds.length &&
+                        activeList.map(b => b.id).join(',') === targetIds.join(',')) {
+                        continue;
+                    }
+
+                    const par = solveShortestPath(activeList, targetIds);
+                    if (par !== null && par >= 2) {
+                        this.initialBars = cloneBars(activeList);
+                        this.currentBars = cloneBars(activeList);
+                        this.targetIds = targetIds;
+                        this.parMoves = par;
+                        validLevel = true;
+                    }
+                }
+
+                // Fallback guaranteed solvable classic level if RNG took too many tries
+                if (!validLevel) {
+                    const targetIds = Array.from({ length: this.numBars }, (_, i) => i);
+                    const activeList = [...targetIds].reverse().map(id => ({
+                        id, counter: null, maxCounter: null, isDecoy: false
+                    }));
+                    this.initialBars = cloneBars(activeList);
+                    this.currentBars = cloneBars(activeList);
+                    this.targetIds = targetIds;
+                    this.parMoves = solveShortestPath(activeList, targetIds) || this.numBars - 1;
+                }
+
+                this.moves = 0;
+                this.history = [];
+                this.renderAll(true);
+            }
+
+            resetLevel() {
+                this.isLocked = false;
+                this.currentBars = cloneBars(this.initialBars);
+                this.moves = 0;
+                this.history = [];
+                this.sfx.playUndo();
+                this.renderAll(true);
+            }
+
+            undo() {
+                if (this.history.length === 0 || this.isLocked) return;
+                this.currentBars = this.history.pop();
+                this.moves = Math.max(0, this.moves - 1);
+                this.sfx.playUndo();
+                this.renderAll(true);
+            }
+
+            handleBarClick(barId) {
+                if (this.isLocked) return;
+                const index = this.currentBars.findIndex(b => b.id === barId);
+                if (index === -1) return;
+
+                // Save snapshot for Undo
+                this.history.push(cloneBars(this.currentBars));
+                this.moves += 1;
+
+                const targetSet = new Set(this.targetIds);
+                const result = applyMoveStep(this.currentBars, index, targetSet);
+
+                this.sfx.playShift(index, this.currentBars.length);
+
+                // Animate vanished bars before removing them from DOM
+                if (result.vanished.length > 0) {
+                    this.isLocked = true;
+                    result.vanished.forEach(v => {
+                        const el = this.activeStackEl.querySelector(`[data-bar-id="${v.id}"]`);
+                        if (el) el.classList.add('vanishing');
+                        this.sfx.playVanish(v.isDecoy);
+                    });
+
+                    setTimeout(() => {
+                        this.currentBars = result.bars;
+                        this.isLocked = false;
+                        this.renderAll(true);
+
+                        if (result.failed) {
+                            this.showFailModal(result.vanished.find(v => targetSet.has(v.id)));
+                        } else {
+                            this.checkVictory();
+                        }
+                    }, 300);
+                } else {
+                    const hasLowCounter = result.bars.some(b => b.counter !== null && b.counter <= 2);
+                    if (hasLowCounter) this.sfx.playCounterTick(true);
+
+                    this.currentBars = result.bars;
+                    this.renderAll(false, barId);
+                    this.checkVictory();
+                }
+            }
+
+            checkVictory() {
+                if (this.currentBars.length !== this.targetIds.length) return;
+                const isMatch = this.currentBars.every((bar, idx) => bar.id === this.targetIds[idx]);
+
+                if (isMatch) {
+                    this.isLocked = true;
+                    setTimeout(() => {
+                        this.sfx.playWin();
+                        this.showVictoryModal();
+                    }, 260);
+                }
+            }
+
+            showVictoryModal() {
+                document.getElementById('modal-moves').textContent = this.moves;
+                document.getElementById('modal-par').textContent = this.parMoves;
+
+                let stars = 1;
+                let title = 'Terkunci!';
+                if (this.moves <= this.parMoves) {
+                    stars = 3;
+                    title = 'Sempurna! (Par)';
+                } else if (this.moves <= this.parMoves + 2) {
+                    stars = 2;
+                    title = 'Hebat!';
+                }
+
+                document.getElementById('victory-title').textContent = title;
+                const starIcons = document.querySelectorAll('#victory-stars .star-icon');
+                starIcons.forEach((icon, i) => {
+                    icon.classList.toggle('earned', i < stars);
+                });
+
+                this.victoryModal.classList.add('open');
+            }
+
+            showFailModal(vanishedBar) {
+                const info = BAR_TYPES[vanishedBar.id];
+                document.getElementById('fail-desc').innerHTML =
+                    `Plat baja <strong>${info.name}</strong> yang dibutuhkan oleh Cetak Biru Target mencapai <strong>0</strong> dan melebur.`;
+                this.failModal.classList.add('open');
+            }
+
+            renderAll(rebuildDOM = false, movedBarId = null) {
+                this.stageEl.textContent = this.stage;
+                this.movesEl.textContent = this.moves;
+                this.parEl.textContent = this.parMoves;
+                this.undoBtn.disabled = this.history.length === 0;
+
+                // Calculate matched positions
+                let matchedCount = 0;
+                this.targetIds.forEach((tId, idx) => {
+                    if (this.currentBars[idx] && this.currentBars[idx].id === tId) {
+                        matchedCount++;
+                    }
+                });
+                this.matchEl.textContent = `${matchedCount}/${this.targetIds.length}`;
+                this.matchEl.classList.toggle('good', matchedCount === this.targetIds.length);
+
+                this.renderActiveStack(rebuildDOM, movedBarId);
+                this.renderTargetStack();
+            }
+
+            renderActiveStack(rebuildDOM, movedBarId) {
+                const totalHeight = this.currentBars.length * (this.barHeight + this.barGap) - this.barGap;
+                this.activeStackEl.style.height = `${Math.max(52, totalHeight)}px`;
+
+                if (rebuildDOM) {
+                    this.activeStackEl.innerHTML = '';
+                    this.currentBars.forEach(bar => {
+                        const info = BAR_TYPES[bar.id];
+                        const el = document.createElement('div');
+                        el.className = `bar-item${bar.isDecoy ? ' is-decoy' : ''}`;
+                        el.dataset.barId = bar.id;
+                        el.style.height = `${this.barHeight}px`;
+                        el.style.background = info.gradient;
+
+                        el.innerHTML = `
+                            <div class="bar-left">
+                                <div class="bar-symbol">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        ${info.svg}
+                                    </svg>
+                                </div>
+                                <span class="bar-name">${info.name}</span>
+                                ${bar.isDecoy ? '<span class="decoy-tag">DECOY</span>' : ''}
+                            </div>
+                            <div class="bar-right">
+                                ${bar.counter !== null ? `<span class="counter-badge" data-counter-badge>⏱ ${bar.counter}</span>` : ''}
+                                <span class="bar-pos-badge" data-pos-badge>#1</span>
+                            </div>
+                        `;
+
+                        el.addEventListener('click', () => this.handleBarClick(bar.id));
+                        this.activeStackEl.appendChild(el);
+                    });
+                }
+
+                // Position and update badges smoothly
+                this.currentBars.forEach((bar, index) => {
+                    const el = this.activeStackEl.querySelector(`[data-bar-id="${bar.id}"]`);
+                    if (!el) return;
+
+                    const y = index * (this.barHeight + this.barGap);
+                    el.style.transform = `translateY(${y}px)`;
+
+                    if (bar.id === movedBarId) {
+                        el.classList.add('moving-top');
+                        setTimeout(() => el.classList.remove('moving-top'), 360);
+                    }
+
+                    const posBadge = el.querySelector('[data-pos-badge]');
+                    if (posBadge) posBadge.textContent = `#${index + 1}`;
+
+                    if (bar.counter !== null) {
+                        const cBadge = el.querySelector('[data-counter-badge]');
+                        if (cBadge) {
+                            cBadge.textContent = `⏱ ${bar.counter}`;
+                            cBadge.classList.toggle('warning', bar.counter === 2);
+                            cBadge.classList.toggle('critical', bar.counter <= 1);
+                        }
+                    }
+                });
+            }
+
+            renderTargetStack() {
+                this.targetStackEl.innerHTML = '';
+                this.targetIds.forEach((id, index) => {
+                    const info = BAR_TYPES[id];
+                    const isMatched = this.currentBars[index] && this.currentBars[index].id === id;
+
+                    const item = document.createElement('div');
+                    item.className = `target-item${isMatched ? ' matched' : ''}`;
+                    item.style.background = info.gradient;
+                    item.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                ${info.svg}
+                            </svg>
+                            <span>${index + 1}. ${info.name}</span>
+                        </div>
+                        <span class="target-match-badge">${isMatched ? '✓' : ''}</span>
+                    `;
+                    this.targetStackEl.appendChild(item);
+                });
+            }
+        }
+
+        // Initialize on Window Load
+        window.onload = function () {
+            window.game = new HoldSteelGame();
+        };
+    </script>
+</body>
+</html>

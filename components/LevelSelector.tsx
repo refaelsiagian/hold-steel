@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import BrandLogo from "./BrandLogo";
 import BoltIcon from "./BoltIcon";
 import { sound } from "./SoundFX";
-import { STAGES_1_TO_10 } from "@/lib/stages";
+import { STAGES_1_TO_10, STAGES_11_TO_20 } from "@/lib/stages";
 
 interface LevelInfo {
   number: number;
@@ -37,30 +37,31 @@ function generateChapter1Levels(): LevelInfo[] {
       gimmick = "Classic";
       bars = stage.bars;
       par = stage.parMoves;
-    } else if (levelNum <= 16) {
+    } else if (levelNum <= 20) {
+      const stage = STAGES_11_TO_20[levelNum - 11];
       gimmick = "Locked";
-      bars = levelNum <= 12 ? 5 : 6;
-      par = 3 + Math.floor((levelNum - 8) / 3);
-    } else if (levelNum <= 24) {
+      bars = stage.bars;
+      par = stage.parMoves;
+    } else if (levelNum <= 26) {
       gimmick = "Counter";
-      bars = levelNum <= 20 ? 5 : 6;
-      par = 4 + Math.floor((levelNum - 16) / 3);
+      bars = levelNum <= 23 ? 5 : 6;
+      par = 4 + Math.floor((levelNum - 20) / 3);
     } else if (levelNum <= 32) {
       gimmick = "Decoy";
       bars = 6;
-      par = 4 + Math.floor((levelNum - 24) / 4);
+      par = 4 + Math.floor((levelNum - 26) / 3);
     } else if (levelNum <= 35) {
       gimmick = "Compound";
-      bars = 6;
+      bars = 7;
       par = 5 + (levelNum - 32);
     } else {
       gimmick = "Boss";
-      bars = 7;
+      bars = 8;
       par = 7;
     }
 
-    // Default unlock levels 1 to 10 for official progression testing
-    const unlocked = levelNum <= 10;
+    // Unlock levels 1 to 20 (Classic + Locked Steel progression)
+    const unlocked = levelNum <= 20;
     let stars = 0;
     let bestMoves: number | null = null;
 
